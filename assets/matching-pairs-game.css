@@ -1,0 +1,193 @@
+.mpg-wrap {
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 16px;
+}
+.mpg-card {
+  border: 1px solid #e5e5e5;
+  border-radius: 14px;
+  padding: 16px 18px;
+  margin: 12px 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+.mpg-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.mpg-title {
+  font-size: 20px;
+  margin: 0;
+}
+.mpg-sub {
+  color: #666;
+  margin: 4px 0 12px;
+}
+.mpg-stats {
+  display: flex;
+  gap: 12px;
+  font-size: 14px;
+  margin-bottom: 12px;
+  color: #444;
+}
+.mpg-grid {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(40px, 1fr));
+  gap: 8px;
+}
+.mpg-card-tile {
+  position: relative;
+  height: 70px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  background: #f7f7f7;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 18px;
+  user-select: none;
+  transition: transform 0.1s ease, box-shadow 0.1s ease, opacity 0.2s;
+  overflow: hidden; /* 👈 important for cropping */
+}
+.mpg-card-tile.face-down {
+  background: #ddd;
+}
+.mpg-card-tile.face-up {
+  background: #fff;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+.mpg-card-tile.matched {
+  opacity: 0.5;
+  cursor: default;
+}
+.mpg-card-tile.disabled {
+  pointer-events: none;
+}
+.mpg-card-tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;   /* fill the tile, crop if needed */
+  display: block;
+}
+.mpg-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 700;
+  z-index: 10;
+}
+.mpg-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+.mpg-btn {
+  border: 1px solid #111;
+  background: #111;
+  color: #fff;
+  border-radius: 10px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.mpg-btn.secondary {
+  background: #f5f5f5;
+  color: #222;
+}
+.mpg-btn[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.mpg-input-row {
+  margin: 10px 0;
+}
+.mpg-input-row label {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+.mpg-input-row input {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+}
+.mpg-scores-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.mpg-scores-table th,
+.mpg-scores-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid #eee;
+}
+.mpg-scores-table th {
+  text-align: left;
+  font-weight: 600;
+}
+.mpg-highlight-row {
+  background: #fffbe6;
+}
+.mpg-scroll-box {
+  max-height: 260px;
+  overflow-y: auto;
+  border-radius: 10px;
+  border: 1px solid #eee;
+  margin: 8px 0 0;
+}
+.mpg-footer-note {
+  font-size: 12px;
+  color: #777;
+  margin-top: 8px;
+}
+.mpg-disabled-btn {
+  opacity: 0.4;
+  cursor: default;
+}
+/* Medium screens – fewer columns, slightly taller cards */
+@media (max-width: 900px) {
+  .mpg-wrap {
+    max-width: 100%;
+    padding: 12px;
+  }
+
+  .mpg-grid {
+    grid-template-columns: repeat(6, minmax(40px, 1fr));
+  }
+
+  .mpg-card-tile {
+    height: 72px;
+  }
+}
+
+/* Small screens (phones) – 4 columns, bigger cards */
+@media (max-width: 600px) {
+  .mpg-grid {
+    grid-template-columns: repeat(4, minmax(40px, 1fr));
+  }
+
+  .mpg-card-tile {
+    height: 80px;
+  }
+
+  .mpg-title {
+    font-size: 18px;
+  }
+
+  .mpg-stats {
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 13px;
+  }
+}
