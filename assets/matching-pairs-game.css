@@ -34,8 +34,22 @@
 }
 .mpg-grid {
   display: grid;
-  grid-template-columns: repeat(8, minmax(40px, 1fr));
   gap: 8px;
+}
+
+/* Default 32-card grid (8 columns x 4 rows) */
+.mpg-grid-32 {
+  grid-template-columns: repeat(8, minmax(40px, 1fr));
+}
+
+/* 16-card grid (4 columns x 4 rows) */
+.mpg-grid-16 {
+  grid-template-columns: repeat(4, minmax(50px, 1fr));
+}
+
+/* 8-card grid (4 columns x 2 rows) */
+.mpg-grid-8 {
+  grid-template-columns: repeat(4, minmax(60px, 1fr));
 }
 .mpg-card-tile {
   position: relative;
@@ -161,15 +175,23 @@
   opacity: 0.4;
   cursor: default;
 }
-/* Medium screens – fewer columns, slightly taller cards */
+/* Medium screens – adjust grid layouts */
 @media (max-width: 900px) {
   .mpg-wrap {
     max-width: 100%;
     padding: 12px;
   }
 
-  .mpg-grid {
+  .mpg-grid-32 {
     grid-template-columns: repeat(6, minmax(40px, 1fr));
+  }
+
+  .mpg-grid-16 {
+    grid-template-columns: repeat(4, minmax(50px, 1fr));
+  }
+
+  .mpg-grid-8 {
+    grid-template-columns: repeat(4, minmax(60px, 1fr));
   }
 
   .mpg-card-tile {
@@ -177,10 +199,18 @@
   }
 }
 
-/* Small screens (phones) – 4 columns, bigger cards */
+/* Small screens (phones) – adjust for better mobile experience */
 @media (max-width: 600px) {
-  .mpg-grid {
+  .mpg-grid-32 {
     grid-template-columns: repeat(4, minmax(40px, 1fr));
+  }
+
+  .mpg-grid-16 {
+    grid-template-columns: repeat(4, minmax(50px, 1fr));
+  }
+
+  .mpg-grid-8 {
+    grid-template-columns: repeat(4, minmax(60px, 1fr));
   }
 
   .mpg-card-tile {

@@ -330,12 +330,23 @@
     card.appendChild(stats);
 
     const grid = el("div", "mpg-grid");
+    
+    // Set grid class based on card count for responsive layouts
+    if (cards.length === 8) {
+      grid.classList.add("mpg-grid-8"); // 4x2
+    } else if (cards.length === 16) {
+      grid.classList.add("mpg-grid-16"); // 4x4
+    } else if (cards.length === 32) {
+      grid.classList.add("mpg-grid-32"); // 8x4
+    }
+
     cards.forEach((c, i) => {
       const tile = el("div", "mpg-card-tile");
       tile.dataset.index = i;
 
       if (c.matched) {
         tile.classList.add("matched");
+        tile.classList.add("disabled");
         const img = document.createElement("img");
         img.src = c.face;
         img.alt = "Matched card";
@@ -350,14 +361,26 @@
         tile.classList.add("face-down");
       }
 
-      if (lockFlip || c.matched) {
+      if (lockFlip) {
         tile.classList.add("disabled");
-      } else {
-        tile.onclick = () => handleFlip(i);
       }
 
       grid.appendChild(tile);
     });
+
+    // Use event delegation with pointerdown for better touch/click reliability
+    grid.addEventListener(
+      "pointerdown",
+      (event) => {
+        const tile = event.target.closest(".mpg-card-tile");
+        if (!tile) return;
+        if (tile.classList.contains("disabled")) return;
+        const index = parseInt(tile.dataset.index, 10);
+        if (Number.isNaN(index)) return;
+        handleFlip(index);
+      },
+      false
+    );
 
     card.appendChild(grid);
     wrap.appendChild(card);
@@ -407,6 +430,11 @@
   }
 
   function completeRound() {
+    // Stop timer and audio immediately
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
     stopAllAudio();
     
     // Add time bonus for this round
@@ -420,10 +448,16 @@
     // Check if there's another round
     if (currentRound < ROUNDS.length - 1) {
       state = "round_complete";
-      renderRoundComplete();
+      // Use setTimeout to ensure state updates before rendering
+      setTimeout(() => {
+        renderRoundComplete();
+      }, 100);
     } else {
       // Final round completed
-      endGame(true);
+      state = "finished";
+      setTimeout(() => {
+        endGame(true);
+      }, 100);
     }
   }
 

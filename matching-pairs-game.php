@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Matching Pairs Game
  * Description: 3-round matching pairs game with timer, scoring, personal and global rankings. Use shortcode [matching_pairs_game].
- * Version: 11.0.0
+ * Version: 11.0.1
  * Author: MisterT9007
  */
 
@@ -10,7 +10,7 @@
 if (!defined('ABSPATH')) exit;
 
 class Matching_Pairs_Game {
-    const VERSION      = '11.0.0';
+    const VERSION      = '11.0.1';
     const TABLE        = 'mfsd_matching_pairs_scores';
 
     // Profanity filter - add more as needed
