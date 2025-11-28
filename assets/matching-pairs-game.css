@@ -37,9 +37,9 @@
   gap: 8px;
 }
 
-/* Default 32-card grid (8 columns x 4 rows) */
-.mpg-grid-32 {
-  grid-template-columns: repeat(8, minmax(40px, 1fr));
+/* 8-card grid (4 columns x 2 rows) */
+.mpg-grid-8 {
+  grid-template-columns: repeat(4, minmax(60px, 1fr));
 }
 
 /* 16-card grid (4 columns x 4 rows) */
@@ -47,9 +47,24 @@
   grid-template-columns: repeat(4, minmax(50px, 1fr));
 }
 
-/* 8-card grid (4 columns x 2 rows) */
-.mpg-grid-8 {
-  grid-template-columns: repeat(4, minmax(60px, 1fr));
+/* 20-card grid (5 columns x 4 rows on desktop) */
+.mpg-grid-20 {
+  grid-template-columns: repeat(5, minmax(50px, 1fr));
+}
+
+/* 24-card grid (6 columns x 4 rows on desktop) */
+.mpg-grid-24 {
+  grid-template-columns: repeat(6, minmax(45px, 1fr));
+}
+
+/* 28-card grid (4 columns x 7 rows) */
+.mpg-grid-28 {
+  grid-template-columns: repeat(4, minmax(50px, 1fr));
+}
+
+/* 32-card grid (8 columns x 4 rows on desktop) */
+.mpg-grid-32 {
+  grid-template-columns: repeat(8, minmax(40px, 1fr));
 }
 .mpg-card-tile {
   position: relative;
@@ -257,16 +272,28 @@
     padding: 12px;
   }
 
-  .mpg-grid-32 {
-    grid-template-columns: repeat(6, minmax(40px, 1fr));
+  .mpg-grid-8 {
+    grid-template-columns: repeat(4, minmax(60px, 1fr));
   }
 
   .mpg-grid-16 {
     grid-template-columns: repeat(4, minmax(50px, 1fr));
   }
 
-  .mpg-grid-8 {
-    grid-template-columns: repeat(4, minmax(60px, 1fr));
+  .mpg-grid-20 {
+    grid-template-columns: repeat(4, minmax(50px, 1fr)); /* 4x5 on tablet */
+  }
+
+  .mpg-grid-24 {
+    grid-template-columns: repeat(4, minmax(50px, 1fr)); /* 4x6 on tablet */
+  }
+
+  .mpg-grid-28 {
+    grid-template-columns: repeat(4, minmax(50px, 1fr)); /* 4x7 */
+  }
+
+  .mpg-grid-32 {
+    grid-template-columns: repeat(4, minmax(50px, 1fr)); /* 4x8 on tablet */
   }
 
   .mpg-card-tile {
@@ -274,18 +301,30 @@
   }
 }
 
-/* Small screens (phones) – adjust for better mobile experience */
+/* Small screens (phones) – all 4 columns for consistency */
 @media (max-width: 600px) {
-  .mpg-grid-32 {
-    grid-template-columns: repeat(4, minmax(40px, 1fr));
+  .mpg-grid-8 {
+    grid-template-columns: repeat(4, minmax(60px, 1fr)); /* 4x2 */
   }
 
   .mpg-grid-16 {
-    grid-template-columns: repeat(4, minmax(50px, 1fr));
+    grid-template-columns: repeat(4, minmax(50px, 1fr)); /* 4x4 */
   }
 
-  .mpg-grid-8 {
-    grid-template-columns: repeat(4, minmax(60px, 1fr));
+  .mpg-grid-20 {
+    grid-template-columns: repeat(4, minmax(50px, 1fr)); /* 4x5 */
+  }
+
+  .mpg-grid-24 {
+    grid-template-columns: repeat(4, minmax(50px, 1fr)); /* 4x6 */
+  }
+
+  .mpg-grid-28 {
+    grid-template-columns: repeat(4, minmax(50px, 1fr)); /* 4x7 */
+  }
+
+  .mpg-grid-32 {
+    grid-template-columns: repeat(4, minmax(50px, 1fr)); /* 4x8 */
   }
 
   .mpg-card-tile {

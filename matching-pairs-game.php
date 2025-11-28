@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Matching Pairs Game
- * Description: 3-round matching pairs game with timer, scoring, personal and global rankings. Use shortcode [matching_pairs_game].
- * Version: 11.0.2
+ * Description: 6-round matching pairs game with timer, scoring, personal and global rankings. Use shortcode [matching_pairs_game].
+ * Version: 11.1.0
  * Author: MisterT9007
  */
 
@@ -10,8 +10,8 @@
 if (!defined('ABSPATH')) exit;
 
 class Matching_Pairs_Game {
-    const VERSION      = '11.0.2';
-    const TABLE        = 'mfsd_matching_pairs_scores';
+    const VERSION      = '11.1.0';
+    const TABLE        = 'matching_pairs_scores';
 
     // Profanity filter - add more as needed
     private static $banned_words = array(
@@ -212,7 +212,7 @@ class Matching_Pairs_Game {
         if ($time_ms < 0) $time_ms = 0;
         if ($pairs < 0) $pairs = 0;
         if ($round < 1) $round = 1;
-        if ($round > 3) $round = 3;
+        if ($round > 6) $round = 6;
 
         global $wpdb;
         $table = $wpdb->prefix . self::TABLE;

@@ -132,9 +132,12 @@
   // ROUND CONFIGURATION
   // =====================================
   const ROUNDS = [
-    { round: 1, pairs: 4, cards: 8 },   // Round 1: 4 pairs (8 cards)
-    { round: 2, pairs: 8, cards: 16 },  // Round 2: 8 pairs (16 cards)
-    { round: 3, pairs: 16, cards: 32 }, // Round 3: 16 pairs (32 cards)
+    { round: 1, pairs: 4, cards: 8 },    // Round 1: 4 pairs (8 cards)
+    { round: 2, pairs: 8, cards: 16 },   // Round 2: 8 pairs (16 cards)
+    { round: 3, pairs: 10, cards: 20 },  // Round 3: 10 pairs (20 cards)
+    { round: 4, pairs: 12, cards: 24 },  // Round 4: 12 pairs (24 cards)
+    { round: 5, pairs: 14, cards: 28 },  // Round 5: 14 pairs (28 cards)
+    { round: 6, pairs: 16, cards: 32 },  // Round 6: 16 pairs (32 cards)
   ];
 
   const ROUND_DURATION_MS = 60000; // 60 seconds per round
@@ -242,14 +245,14 @@
     const wrap = el("div", "mpg-wrap");
     const card = el("div", "mpg-card");
     const header = el("div", "mpg-header");
-    header.appendChild(el("h2", "mpg-title", "Matching Pairs - 3 Round Challenge"));
+    header.appendChild(el("h2", "mpg-title", "Matching Pairs - 6 Round Challenge"));
 
     card.appendChild(header);
     card.appendChild(
       el(
         "p",
         "mpg-sub",
-        "Progress through 3 rounds of increasing difficulty. You have 1 minute per round!"
+        "Progress through 6 rounds of increasing difficulty. You have 1 minute per round!"
       )
     );
 
@@ -257,7 +260,10 @@
     info.innerHTML =
       "<strong>Round 1:</strong> 4 pairs (8 cards)<br>" +
       "<strong>Round 2:</strong> 8 pairs (16 cards)<br>" +
-      "<strong>Round 3:</strong> 16 pairs (32 cards)<br><br>" +
+      "<strong>Round 3:</strong> 10 pairs (20 cards)<br>" +
+      "<strong>Round 4:</strong> 12 pairs (24 cards)<br>" +
+      "<strong>Round 5:</strong> 14 pairs (28 cards)<br>" +
+      "<strong>Round 6:</strong> 16 pairs (32 cards)<br><br>" +
       "Match pairs to earn <strong>100 points per pair</strong>. " +
       "Finish with time left to get <strong>100 bonus points per 0.5 seconds</strong> remaining.<br><br>" +
       "If you run out of time, your game ends and you can save your score!";
@@ -372,8 +378,14 @@
       grid.classList.add("mpg-grid-8"); // 4x2
     } else if (cards.length === 16) {
       grid.classList.add("mpg-grid-16"); // 4x4
+    } else if (cards.length === 20) {
+      grid.classList.add("mpg-grid-20"); // 5x4 desktop, 4x5 mobile
+    } else if (cards.length === 24) {
+      grid.classList.add("mpg-grid-24"); // 6x4 desktop, 4x6 mobile
+    } else if (cards.length === 28) {
+      grid.classList.add("mpg-grid-28"); // 4x7
     } else if (cards.length === 32) {
-      grid.classList.add("mpg-grid-32"); // 8x4
+      grid.classList.add("mpg-grid-32"); // 8x4 desktop, 4x8 mobile
     }
 
     cards.forEach((c, i) => {
