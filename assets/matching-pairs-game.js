@@ -1,5 +1,4 @@
-
- (function () {
+(function () {
   const cfg = window.MATCHING_PAIRS_CFG || {};
   const root = document.getElementById("matching-pairs-root");
   if (!root) return;
@@ -27,7 +26,7 @@
     "16.jpg",
   ];
 
-  // Build full URLs based on your plugin’s assetsBase path
+  // Build full URLs based on your plugin's assetsBase path
   const CARD_IMAGES = CARD_FILES.map(
     (name) => (cfg.assetsBase || "") + "cards/" + name
   );
@@ -111,7 +110,7 @@
           gameAudio.pause();
         } catch (e) {}
       }
-    }, GAME_DURATION_MS + 500);
+    }, ROUND_DURATION_MS + 500);
   }
 
   function playRandomLeaderTrack() {
@@ -129,20 +128,32 @@
     });
   }
 
+  // =====================================
+  // ROUND CONFIGURATION
+  // =====================================
+  const ROUNDS = [
+    { round: 1, pairs: 4, cards: 8 },   // Round 1: 4 pairs (8 cards)
+    { round: 2, pairs: 8, cards: 16 },  // Round 2: 8 pairs (16 cards)
+    { round: 3, pairs: 16, cards: 32 }, // Round 3: 16 pairs (32 cards)
+  ];
 
-  const GAME_DURATION_MS = 60000; // 60 seconds
+  const ROUND_DURATION_MS = 60000; // 60 seconds per round
   const PRE_COUNTDOWN_MS = 3000; // 3 seconds
  
-  let state = "intro"; // intro | countdown | playing | finished | personal | global
+  let state = "intro"; // intro | countdown | playing | round_complete | finished | personal | global
+  let currentRound = 0; // 0-indexed (0 = Round 1, 1 = Round 2, 2 = Round 3)
+  let totalScore = 0;
+  let totalMatchedPairs = 0;
+  
   let cards = [];
   let firstIndex = null;
   let secondIndex = null;
   let lockFlip = false;
   let matchedPairs = 0;
-  let score = 0;
+  let roundScore = 0;
   let timerStart = 0;
   let timerInterval = null;
-  let timeLeftMs = GAME_DURATION_MS;
+  let timeLeftMs = ROUND_DURATION_MS;
 
   let playerInitials = "";
   let lastSubmitId = null;
@@ -156,30 +167,34 @@
     return arr;
   }
 
-  function createDeck() {
+  function createDeck(pairCount) {
     const deck = [];
-    CARD_IMAGES.forEach((face, idx) => {
-      deck.push({ id: idx * 2, face: face, matched: false });
-      deck.push({ id: idx * 2 + 1, face: face, matched: false });
-    });
+    for (let i = 0; i < pairCount; i++) {
+      const face = CARD_IMAGES[i % CARD_IMAGES.length];
+      deck.push({ id: i * 2, face: face, matched: false });
+      deck.push({ id: i * 2 + 1, face: face, matched: false });
+    }
     return shuffle(deck);
   }
 
   function resetGame() {
     state = "intro";
-    cards = createDeck();
+    currentRound = 0;
+    totalScore = 0;
+    totalMatchedPairs = 0;
+    cards = [];
     firstIndex = null;
     secondIndex = null;
     lockFlip = false;
     matchedPairs = 0;
-    score = 0;
+    roundScore = 0;
     timerStart = 0;
-    timeLeftMs = GAME_DURATION_MS;
+    timeLeftMs = ROUND_DURATION_MS;
     if (timerInterval) {
       clearInterval(timerInterval);
       timerInterval = null;
     }
-    stopAllAudio();   // 👈 ensure nothing keeps playing
+    stopAllAudio();
     renderIntro();
   }
 
@@ -196,25 +211,29 @@
     const wrap = el("div", "mpg-wrap");
     const card = el("div", "mpg-card");
     const header = el("div", "mpg-header");
-    header.appendChild(el("h2", "mpg-title", "Matching Pairs"));
+    header.appendChild(el("h2", "mpg-title", "Matching Pairs - 3 Round Challenge"));
 
     card.appendChild(header);
     card.appendChild(
       el(
         "p",
         "mpg-sub",
-        "You have 1 minute to find all 16 matching pairs. Finish early to earn bonus points!"
+        "Progress through 3 rounds of increasing difficulty. You have 1 minute per round!"
       )
     );
 
     const info = el("p", "mpg-sub");
     info.innerHTML =
+      "<strong>Round 1:</strong> 4 pairs (8 cards)<br>" +
+      "<strong>Round 2:</strong> 8 pairs (16 cards)<br>" +
+      "<strong>Round 3:</strong> 16 pairs (32 cards)<br><br>" +
       "Match pairs to earn <strong>100 points per pair</strong>. " +
-      "If you finish with time left, you get <strong>100 bonus points per 0.5 seconds</strong> remaining.";
+      "Finish with time left to get <strong>100 bonus points per 0.5 seconds</strong> remaining.<br><br>" +
+      "If you run out of time, your game ends and you can save your score!";
     card.appendChild(info);
 
     const actions = el("div", "mpg-actions");
-    const btn = el("button", "mpg-btn", "Start game");
+    const btn = el("button", "mpg-btn", "Start Round 1");
     btn.onclick = () => startCountdown();
     actions.appendChild(btn);
 
@@ -225,13 +244,18 @@
 
   function startCountdown() {
     state = "countdown";
+    const roundConfig = ROUNDS[currentRound];
     const wrap = el("div", "mpg-wrap");
     const card = el("div", "mpg-card");
     const header = el("div", "mpg-header");
-    header.appendChild(el("h2", "mpg-title", "Get ready..."));
+    header.appendChild(el("h2", "mpg-title", `Round ${roundConfig.round} - Get ready...`));
     card.appendChild(header);
     const countdownText = el("p", "mpg-sub", "Starting in 3...");
     card.appendChild(countdownText);
+
+    const info = el("p", "mpg-sub");
+    info.innerHTML = `Find <strong>${roundConfig.pairs} pairs</strong> in 1 minute!`;
+    card.appendChild(info);
 
     wrap.appendChild(card);
     root.replaceChildren(wrap);
@@ -245,34 +269,35 @@
         remaining > 0 ? `Starting in ${seconds}...` : "Go!";
       if (remaining <= 0) {
         clearInterval(interval);
-        startGame();
+        startRound();
       }
     }, step);
   }
 
-  function startGame() {
+  function startRound() {
     state = "playing";
-    cards = createDeck();
+    const roundConfig = ROUNDS[currentRound];
+    cards = createDeck(roundConfig.pairs);
     firstIndex = null;
     secondIndex = null;
     lockFlip = false;
     matchedPairs = 0;
-    score = 0;
+    roundScore = 0;
     timerStart = Date.now();
-    timeLeftMs = GAME_DURATION_MS;
+    timeLeftMs = ROUND_DURATION_MS;
 
-    playRandomGameTrack();  // 👈 start background music
+    playRandomGameTrack();
 
     if (timerInterval) clearInterval(timerInterval);
     timerInterval = setInterval(() => {
       const elapsed = Date.now() - timerStart;
-      timeLeftMs = Math.max(0, GAME_DURATION_MS - elapsed);
+      timeLeftMs = Math.max(0, ROUND_DURATION_MS - elapsed);
       if (timeLeftMs <= 0) {
         clearInterval(timerInterval);
         timerInterval = null;
-        endGame(false);
+        endGame(false); // Time ran out
       } else {
-        renderGame(); // update timer display
+        renderGame();
       }
     }, 100);
 
@@ -282,244 +307,221 @@
   function formatTime(ms) {
     const s = Math.max(0, ms) / 1000;
     const whole = Math.floor(s);
-    const tenths = Math.floor((s - whole) * 10);
-    return `${whole}.${tenths.toString().padStart(1, "0")}s`;
+    const frac = Math.floor((s - whole) * 10);
+    return `${whole}.${frac}s`;
   }
 
-function renderGame() {
-  if (state !== "playing") return;
+  function renderGame() {
+    const roundConfig = ROUNDS[currentRound];
+    const wrap = el("div", "mpg-wrap");
+    const card = el("div", "mpg-card");
 
-  const wrap = el("div", "mpg-wrap");
-  const cardEl = el("div", "mpg-card");
-  const header = el("div", "mpg-header");
-  header.appendChild(el("h2", "mpg-title", "Matching Pairs"));
-  cardEl.appendChild(header);
+    const header = el("div", "mpg-header");
+    header.appendChild(el("h2", "mpg-title", `Round ${roundConfig.round}`));
+    card.appendChild(header);
 
-  const stats = el("div", "mpg-stats");
-  stats.appendChild(el("div", "", `Time left: ${formatTime(timeLeftMs)}`));
-  stats.appendChild(el("div", "", `Score: ${score}`));
-  stats.appendChild(el("div", "", `Pairs matched: ${matchedPairs} / 16`));
-  cardEl.appendChild(stats);
+    const stats = el("div", "mpg-stats");
+    stats.innerHTML = `
+      <span>⏱️ Time: <strong>${formatTime(timeLeftMs)}</strong></span>
+      <span>🎯 Matched: <strong>${matchedPairs}/${roundConfig.pairs}</strong></span>
+      <span>💯 Round Score: <strong>${roundScore}</strong></span>
+      <span>📊 Total Score: <strong>${totalScore + roundScore}</strong></span>
+    `;
+    card.appendChild(stats);
 
-  const gridWrapper = el("div", "");
-  gridWrapper.style.position = "relative";
+    const grid = el("div", "mpg-grid");
+    cards.forEach((c, i) => {
+      const tile = el("div", "mpg-card-tile");
+      tile.dataset.index = i;
 
-  const grid = el("div", "mpg-grid");
-
-  // Build tiles
-  cards.forEach((c, idx) => {
-    const tile = el("div", "mpg-card-tile");
-    tile.dataset.index = idx;
-
-    const isFaceUp =
-      c.matched || idx === firstIndex || idx === secondIndex;
-
-    if (c.matched) {
-      tile.classList.add("matched", "disabled");
-    }
-
-    if (!isFaceUp) {
-      tile.classList.add("face-down");
-    } else {
-      tile.classList.add("face-up");
-
-      const imgUrl = c.face; // face already holds the full image URL
-      if (imgUrl) {
+      if (c.matched) {
+        tile.classList.add("matched");
         const img = document.createElement("img");
-        img.src = imgUrl;
-        img.alt = `Card ${idx + 1}`;
-        img.loading = "lazy";
+        img.src = c.face;
+        img.alt = "Matched card";
+        tile.appendChild(img);
+      } else if (i === firstIndex || i === secondIndex) {
+        tile.classList.add("face-up");
+        const img = document.createElement("img");
+        img.src = c.face;
+        img.alt = "Card face";
         tile.appendChild(img);
       } else {
-        tile.textContent = String(idx + 1);
+        tile.classList.add("face-down");
       }
-    }
 
-    if (lockFlip || c.matched) {
-      tile.classList.add("disabled");
-    }
+      if (lockFlip || c.matched) {
+        tile.classList.add("disabled");
+      } else {
+        tile.onclick = () => handleFlip(i);
+      }
 
-    grid.appendChild(tile);
-  });
-
-  // ONE click handler for the whole grid (event delegation)
-  grid.addEventListener(
-  "pointerdown",
-  (event) => {
-    console.log("GRID POINTERDOWN fired", {
-      tag: event.target.tagName,
-      class: event.target.className,
+      grid.appendChild(tile);
     });
 
-    const tile = event.target.closest(".mpg-card-tile");
-    if (!tile) return;
-
-    if (tile.classList.contains("disabled")) {
-      console.log("Tile ignored: disabled", tile.dataset.index);
-      return;
-    }
-
-    const index = parseInt(tile.dataset.index, 10);
-    if (Number.isNaN(index)) {
-      console.log("Tile ignored: no dataset.index");
-      return;
-    }
-
-    console.log("GRID HANDLER calling handleFlip for", index);
-    handleFlip(index);
-  },
-  false
-);
-
-
-  gridWrapper.appendChild(grid);
-  cardEl.appendChild(gridWrapper);
-
-  const actions = el("div", "mpg-actions");
-  const quitBtn = el("button", "mpg-btn secondary", "Quit");
-  quitBtn.onclick = resetGame;
-  actions.appendChild(quitBtn);
-  cardEl.appendChild(actions);
-
-  wrap.appendChild(cardEl);
-  root.replaceChildren(wrap);
-}
-
-// --- TEMP DEBUG: log any click that hits a tile at all ---
-document.addEventListener(
-  "click",
-  (e) => {
-    const tile = e.target.closest(".mpg-card-tile");
-    if (tile) {
-      console.log("RAW CLICK on tile", tile.dataset.index, {
-        tag: e.target.tagName,
-        classes: e.target.className,
-        lockFlip,
-        state,
-      });
-    }
-  },
-  true // capture phase: see clicks even if something stops bubbling
-);
-
+    card.appendChild(grid);
+    wrap.appendChild(card);
+    root.replaceChildren(wrap);
+  }
 
   function handleFlip(index) {
-     console.log("handleFlip()", {
-    index,
-    lockFlip,
-    state,
-    firstIndex,
-    secondIndex,
-    matched: cards[index].matched
-  });
-    if (lockFlip) return;
-    const c = cards[index];
-    if (c.matched) return;
+    if (lockFlip || cards[index].matched) return;
     if (index === firstIndex) return;
 
     if (firstIndex === null) {
       firstIndex = index;
       renderGame();
-      return;
-    }
-
-    if (secondIndex === null) {
+    } else {
       secondIndex = index;
       lockFlip = true;
       renderGame();
 
-      const firstCard = cards[firstIndex];
-      const secondCard = cards[secondIndex];
-
       setTimeout(() => {
-        if (firstCard.face === secondCard.face) {
-          firstCard.matched = true;
-          secondCard.matched = true;
-          matchedPairs++;
-          score += 100;
-          if (matchedPairs === 16) {
-            // all pairs found
-            endGame(true);
-            return;
-          }
-        }
-        firstIndex = null;
-        secondIndex = null;
-        lockFlip = false;
-        renderGame();
-      }, 700);
+        checkMatch();
+      }, 800);
     }
   }
 
-  function endGame(allMatched) {
-    state = "finished";
-    if (timerInterval) {
-      clearInterval(timerInterval);
-      timerInterval = null;
-    }
-    stopAllAudio();  // 👈 stop game audio when game is over
-    let bonus = 0;
-    if (allMatched && timeLeftMs > 0) {
-      // 100 points per 0.5 seconds remaining
-      const units = Math.floor(timeLeftMs / 500);
-      bonus = units * 100;
-      score += bonus;
+  function checkMatch() {
+    const c1 = cards[firstIndex];
+    const c2 = cards[secondIndex];
+
+    if (c1.face === c2.face) {
+      c1.matched = true;
+      c2.matched = true;
+      matchedPairs++;
+      roundScore += 100;
+
+      const roundConfig = ROUNDS[currentRound];
+      if (matchedPairs === roundConfig.pairs) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+        completeRound();
+      }
     }
 
-    renderSummary(allMatched, bonus);
+    firstIndex = null;
+    secondIndex = null;
+    lockFlip = false;
+    renderGame();
   }
 
-  function renderSummary(allMatched, bonus) {
+  function completeRound() {
+    stopAllAudio();
+    
+    // Add time bonus for this round
+    const timeBonus = Math.floor(timeLeftMs / 500) * 100;
+    roundScore += timeBonus;
+    totalScore += roundScore;
+    totalMatchedPairs += matchedPairs;
+
+    const roundConfig = ROUNDS[currentRound];
+    
+    // Check if there's another round
+    if (currentRound < ROUNDS.length - 1) {
+      state = "round_complete";
+      renderRoundComplete();
+    } else {
+      // Final round completed
+      endGame(true);
+    }
+  }
+
+  function renderRoundComplete() {
+    const roundConfig = ROUNDS[currentRound];
     const wrap = el("div", "mpg-wrap");
     const card = el("div", "mpg-card");
 
-     playRandomLeaderTrack();   // 👈 new: music for leaderboard view
-
     const header = el("div", "mpg-header");
-    header.appendChild(el("h2", "mpg-title", "Game over"));
+    header.appendChild(el("h2", "mpg-title", `Round ${roundConfig.round} Complete! 🎉`));
     card.appendChild(header);
 
-    const result = allMatched
-      ? "You found all 16 pairs!"
-      : "Time’s up! You didn’t find all the pairs this time.";
-    card.appendChild(el("p", "mpg-sub", result));
+    const stats = el("div", "mpg-sub");
+    const timeBonus = Math.floor(timeLeftMs / 500) * 100;
+    stats.innerHTML = `
+      <strong>Round ${roundConfig.round} Score:</strong><br>
+      Pairs matched: ${matchedPairs} × 100 = ${matchedPairs * 100} points<br>
+      Time bonus: ${formatTime(timeLeftMs)} = ${timeBonus} points<br>
+      <strong>Round Total: ${roundScore} points</strong><br><br>
+      <strong>Total Score: ${totalScore} points</strong>
+    `;
+    card.appendChild(stats);
 
-    const details = el(
-      "p",
-      "mpg-sub",
-      `Pairs matched: ${matchedPairs} / 16 · Base score: ${
-        matchedPairs * 100
-      }`
-    );
-    card.appendChild(details);
+    const actions = el("div", "mpg-actions");
+    const nextBtn = el("button", "mpg-btn", `Continue to Round ${ROUNDS[currentRound + 1].round}`);
+    nextBtn.onclick = () => {
+      currentRound++;
+      startCountdown();
+    };
+    actions.appendChild(nextBtn);
 
-    if (bonus > 0) {
-      card.appendChild(
-        el(
-          "p",
-          "mpg-sub",
-          `Bonus for finishing early: +${bonus} points (time left: ${formatTime(
-            timeLeftMs
-          )})`
-        )
-      );
+    card.appendChild(actions);
+    wrap.appendChild(card);
+    root.replaceChildren(wrap);
+  }
+
+  function endGame(completed) {
+    stopAllAudio();
+    state = "finished";
+
+    if (!completed) {
+      // Time ran out - calculate score for partially completed round
+      const timeBonus = Math.floor(timeLeftMs / 500) * 100;
+      roundScore += timeBonus;
+      totalScore += roundScore;
+      totalMatchedPairs += matchedPairs;
     }
 
-    card.appendChild(el("p", "mpg-sub", `Final score: ${score}`));
+    const finalRound = currentRound + 1; // Convert to 1-indexed for display
+    renderFinished(finalRound, completed);
+  }
 
-    // Initials input
+  function renderFinished(finalRound, completed) {
+    const wrap = el("div", "mpg-wrap");
+    const card = el("div", "mpg-card");
+
+    const header = el("div", "mpg-header");
+    const title = completed 
+      ? "🏆 All Rounds Complete!"
+      : `⏰ Time's Up - Round ${finalRound}`;
+    header.appendChild(el("h2", "mpg-title", title));
+    card.appendChild(header);
+
+    const message = completed
+      ? "Congratulations! You completed all 3 rounds!"
+      : `You reached Round ${finalRound} before time ran out.`;
+    
+    card.appendChild(el("p", "mpg-sub", message));
+
+    const stats = el("div", "mpg-sub");
+    stats.innerHTML = `
+      <strong>Final Stats:</strong><br>
+      Round reached: ${finalRound}<br>
+      Total pairs matched: ${totalMatchedPairs}<br>
+      <strong>Final Score: ${totalScore} points</strong>
+    `;
+    card.appendChild(stats);
+
     const row = el("div", "mpg-input-row");
     const label = el(
       "label",
       "",
-      "Enter up to 3 initials to save your score (e.g. ABC):"
+      "Enter up to 5 characters to save your score (letters, numbers, or spaces):"
     );
     const input = document.createElement("input");
-    input.maxLength = 3;
-    input.placeholder = "ABC";
+    input.maxLength = 5;
+    input.placeholder = "ABC12";
     input.value = playerInitials || "";
+    
+    const errorMsg = el("div", "mpg-error-msg", "");
+    errorMsg.style.color = "#d32f2f";
+    errorMsg.style.fontSize = "13px";
+    errorMsg.style.marginTop = "4px";
+    errorMsg.style.display = "none";
+    
     row.appendChild(label);
     row.appendChild(input);
+    row.appendChild(errorMsg);
     card.appendChild(row);
 
     const actions = el("div", "mpg-actions");
@@ -531,31 +533,61 @@ document.addEventListener(
     );
 
     saveBtn.onclick = async () => {
-      const initials = (input.value || "").toUpperCase();
-      playerInitials = initials;
+      const initials = (input.value || "").trim();
+      
+      // Validate on client side first
+      if (!initials) {
+        errorMsg.textContent = "Please enter at least one character.";
+        errorMsg.style.display = "block";
+        return;
+      }
+
       saveBtn.disabled = true;
+      errorMsg.style.display = "none";
+
       try {
-        const res = await fetch(cfg.rest.submit, {
+        // Check initials with server
+        const checkRes = await fetch(cfg.rest.checkInitials, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            initials,
-            score,
-            time_left_ms: timeLeftMs,
-            matched_pairs: matchedPairs,
-          }),
+          body: JSON.stringify({ initials }),
         });
-        const j = await res.json();
-        if (!j || !j.ok) {
-          alert("Could not save score: " + (j && j.error ? j.error : "error"));
+        const checkData = await checkRes.json();
+
+        if (!checkData.ok) {
+          errorMsg.textContent = checkData.message || "Invalid initials. Please try again.";
+          errorMsg.style.display = "block";
           saveBtn.disabled = false;
           return;
         }
-        lastSubmitId = j.id;
-        playerInitials = j.initials || initials;
+
+        // Submit score
+        const submitRes = await fetch(cfg.rest.submit, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            initials: checkData.initials,
+            score: totalScore,
+            time_left_ms: timeLeftMs,
+            matched_pairs: totalMatchedPairs,
+            round_reached: finalRound,
+          }),
+        });
+        const submitData = await submitRes.json();
+
+        if (!submitData || !submitData.ok) {
+          errorMsg.textContent = "Could not save score: " + (submitData && submitData.error ? submitData.error : "error");
+          errorMsg.style.display = "block";
+          saveBtn.disabled = false;
+          return;
+        }
+
+        lastSubmitId = submitData.id;
+        playerInitials = submitData.initials || checkData.initials;
         renderPersonalScores();
       } catch (e) {
-        alert("Could not save score: " + e.message);
+        errorMsg.textContent = "Could not save score: " + e.message;
+        errorMsg.style.display = "block";
         saveBtn.disabled = false;
       }
     };
@@ -596,7 +628,7 @@ document.addEventListener(
     const table = el("table", "mpg-scores-table");
     const thead = document.createElement("thead");
     const trh = document.createElement("tr");
-    ["Rank", "Score", "Initials"].forEach((h) => {
+    ["Rank", "Score", "Round", "Initials"].forEach((h) => {
       const th = document.createElement("th");
       th.textContent = h;
       trh.appendChild(th);
@@ -609,7 +641,7 @@ document.addEventListener(
     if (!playerInitials) {
       const tr = document.createElement("tr");
       const td = document.createElement("td");
-      td.colSpan = 3;
+      td.colSpan = 4;
       td.textContent = "No scores saved yet for this session.";
       tr.appendChild(td);
       tbody.appendChild(tr);
@@ -626,7 +658,7 @@ document.addEventListener(
         if (!scores.length) {
           const tr = document.createElement("tr");
           const td = document.createElement("td");
-          td.colSpan = 3;
+          td.colSpan = 4;
           td.textContent = "No scores found yet for those initials.";
           tr.appendChild(td);
           tbody.appendChild(tr);
@@ -637,16 +669,18 @@ document.addEventListener(
             tdRank.textContent = String(idx + 1);
             const tdScore = document.createElement("td");
             tdScore.textContent = row.score;
+            const tdRound = document.createElement("td");
+            tdRound.textContent = row.round_reached || "1";
             const tdInit = document.createElement("td");
             tdInit.textContent = row.initials || "";
-            tr.append(tdRank, tdScore, tdInit);
+            tr.append(tdRank, tdScore, tdRound, tdInit);
             tbody.appendChild(tr);
           });
         }
       } catch (e) {
         const tr = document.createElement("tr");
         const td = document.createElement("td");
-        td.colSpan = 3;
+        td.colSpan = 4;
         td.textContent = "Error loading scores: " + e.message;
         tr.appendChild(td);
         tbody.appendChild(tr);
@@ -702,7 +736,7 @@ document.addEventListener(
     const table = el("table", "mpg-scores-table");
     const thead = document.createElement("thead");
     const trh = document.createElement("tr");
-    ["Rank", "Score", "Initials"].forEach((h) => {
+    ["Rank", "Score", "Round", "Initials"].forEach((h) => {
       const th = document.createElement("th");
       th.textContent = h;
       trh.appendChild(th);
@@ -729,7 +763,7 @@ document.addEventListener(
       if (!scores.length) {
         const tr = document.createElement("tr");
         const td = document.createElement("td");
-        td.colSpan = 3;
+        td.colSpan = 4;
         td.textContent = "No scores recorded yet.";
         tr.appendChild(td);
         tbody.appendChild(tr);
@@ -742,16 +776,18 @@ document.addEventListener(
           tdRank.textContent = String(idx + 1);
           const tdScore = document.createElement("td");
           tdScore.textContent = row.score;
+          const tdRound = document.createElement("td");
+          tdRound.textContent = row.round_reached || "1";
           const tdInit = document.createElement("td");
           tdInit.textContent = row.initials || "";
-          tr.append(tdRank, tdScore, tdInit);
+          tr.append(tdRank, tdScore, tdRound, tdInit);
           tbody.appendChild(tr);
         });
       }
     } catch (e) {
       const tr = document.createElement("tr");
       const td = document.createElement("td");
-      td.colSpan = 3;
+      td.colSpan = 4;
       td.textContent = "Error loading global scores: " + e.message;
       tr.appendChild(td);
       tbody.appendChild(tr);
