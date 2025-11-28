@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Matching Pairs Game
  * Description: 6-round matching pairs game with timer, scoring, personal and global rankings. Use shortcode [matching_pairs_game].
- * Version: 11.1.2
+ * Version: 11.1.3
  * Author: MisterT9007
  */
 
@@ -10,7 +10,7 @@
 if (!defined('ABSPATH')) exit;
 
 class Matching_Pairs_Game {
-    const VERSION      = '11.1.2';
+    const VERSION      = '11.1.3';
     const TABLE        = 'matching_pairs_scores';
 
     // Profanity filter - add more as needed
@@ -153,6 +153,7 @@ class Matching_Pairs_Game {
         wp_enqueue_script($handle);
         wp_enqueue_style($handle);
 
+        $user_id = get_current_user_id();
         $config = array(
             'rest'   => array(
                 'submit'   => esc_url_raw(rest_url('matching-pairs/v1/submit')),
@@ -160,7 +161,9 @@ class Matching_Pairs_Game {
                 'global'   => esc_url_raw(rest_url('matching-pairs/v1/global')),
                 'checkInitials' => esc_url_raw(rest_url('matching-pairs/v1/check-initials')),
             ),
+            'nonce'  => wp_create_nonce('wp_rest'),
             'user'   => is_user_logged_in() ? wp_get_current_user()->user_login : '',
+            'userId' => $user_id,
             'nextUrl' => '', // placeholder for "next activity" button
             'assetsBase'=> plugins_url('assets/', __FILE__),
         );
@@ -273,8 +276,14 @@ class Matching_Pairs_Game {
         global $wpdb;
         $table = $wpdb->prefix . self::TABLE;
 
+        // Get user ID - for REST API, current_user might be 0, so try to get from request
+        $user_id = get_current_user_id();
+        if ($user_id === 0 && is_user_logged_in()) {
+            $user_id = wp_get_current_user()->ID;
+        }
+
         $data = array(
-            'user_id'      => get_current_user_id(),
+            'user_id'      => $user_id > 0 ? $user_id : null,
             'initials'     => $sanitized,
             'score'        => $score,
             'time_left_ms' => $time_ms,
@@ -286,32 +295,56 @@ class Matching_Pairs_Game {
 
         // Log what we're trying to insert
         error_log('Matching Pairs - Attempting to insert: ' . print_r($data, true));
+        error_log('Matching Pairs - Table name: ' . $table);
+        
+        // Clear any previous errors
+        $wpdb->flush();
+        $wpdb->last_error = '';
         
         $result = $wpdb->insert($table, $data);
         
         // Log the result and any errors
-        error_log('Matching Pairs - Insert result: ' . ($result === false ? 'FALSE' : $result));
-        error_log('Matching Pairs - Last error: ' . $wpdb->last_error);
+        error_log('Matching Pairs - Insert result (rows affected): ' . var_export($result, true));
+        error_log('Matching Pairs - Insert ID: ' . var_export($wpdb->insert_id, true));
+        error_log('Matching Pairs - Last error: ' . var_export($wpdb->last_error, true));
         error_log('Matching Pairs - Last query: ' . $wpdb->last_query);
         
-        if ($result === false) {
+        // Check for actual failure - $wpdb->insert returns false on error, or number of rows affected
+        if ($result === false || empty($wpdb->insert_id)) {
             $last_error = $wpdb->last_error;
             $last_query = $wpdb->last_query;
+            
+            error_log('Matching Pairs - INSERT FAILED!');
             
             return array(
                 'ok' => false, 
                 'error' => 'db_insert_failed',
-                'message' => 'Database insert failed. Check server error logs.',
+                'message' => 'Database insert failed: ' . ($last_error ?: 'No insert ID returned'),
                 'debug' => array(
                     'wpdb_error' => $last_error,
                     'wpdb_query' => $last_query,
                     'result' => $result,
+                    'insert_id' => $wpdb->insert_id,
+                    'table' => $table,
                 )
             );
         }
 
         $insert_id = $wpdb->insert_id;
         error_log('Matching Pairs - Successfully inserted with ID: ' . $insert_id);
+        
+        // Verify the row was actually inserted
+        $verify = $wpdb->get_row($wpdb->prepare("SELECT id FROM $table WHERE id = %d", $insert_id));
+        if (!$verify) {
+            error_log('Matching Pairs - Row verification FAILED - row not found after insert!');
+            return array(
+                'ok' => false,
+                'error' => 'verification_failed',
+                'message' => 'Insert appeared to succeed but row not found in database.',
+            );
+        }
+        
+        error_log('Matching Pairs - Row verified in database');
         
         return array('ok' => true, 'id' => $insert_id, 'initials' => $sanitized);
     }

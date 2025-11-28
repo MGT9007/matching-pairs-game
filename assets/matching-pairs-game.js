@@ -666,9 +666,14 @@
       try {
         // Check initials with server
         console.log("Checking initials:", initials);
+        console.log("User ID from config:", cfg.userId);
+        
         const checkRes = await fetch(cfg.rest.checkInitials, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json",
+            "X-WP-Nonce": cfg.nonce || ""
+          },
           body: JSON.stringify({ initials }),
         });
         
@@ -694,7 +699,10 @@
         
         const submitRes = await fetch(cfg.rest.submit, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json",
+            "X-WP-Nonce": cfg.nonce || ""
+          },
           body: JSON.stringify({
             initials: checkData.initials,
             score: totalScore,
