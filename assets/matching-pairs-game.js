@@ -665,12 +665,16 @@
 
       try {
         // Check initials with server
+        console.log("Checking initials:", initials);
         const checkRes = await fetch(cfg.rest.checkInitials, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ initials }),
         });
+        
+        console.log("Check response status:", checkRes.status);
         const checkData = await checkRes.json();
+        console.log("Check response data:", checkData);
 
         if (!checkData.ok) {
           errorMsg.textContent = checkData.message || "Invalid initials. Please try again.";
@@ -680,6 +684,14 @@
         }
 
         // Submit score
+        console.log("Submitting score with data:", {
+          initials: checkData.initials,
+          score: totalScore,
+          time_left_ms: timeLeftMs,
+          matched_pairs: totalMatchedPairs,
+          round_reached: finalRound,
+        });
+        
         const submitRes = await fetch(cfg.rest.submit, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -691,19 +703,26 @@
             round_reached: finalRound,
           }),
         });
+        
+        console.log("Submit response status:", submitRes.status);
         const submitData = await submitRes.json();
+        console.log("Submit response data:", submitData);
 
         if (!submitData || !submitData.ok) {
-          errorMsg.textContent = "Could not save score: " + (submitData && submitData.error ? submitData.error : "error");
+          const errorDetail = submitData && submitData.error ? submitData.error : "unknown error";
+          errorMsg.textContent = "Could not save score: " + errorDetail;
           errorMsg.style.display = "block";
           saveBtn.disabled = false;
+          console.error("Score submission failed:", errorDetail);
           return;
         }
 
         lastSubmitId = submitData.id;
         playerInitials = submitData.initials || checkData.initials;
+        console.log("Score saved successfully! ID:", lastSubmitId);
         renderPersonalScores();
       } catch (e) {
+        console.error("Error during score submission:", e);
         errorMsg.textContent = "Could not save score: " + e.message;
         errorMsg.style.display = "block";
         saveBtn.disabled = false;

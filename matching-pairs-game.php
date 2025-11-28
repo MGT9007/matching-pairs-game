@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Matching Pairs Game
  * Description: 6-round matching pairs game with timer, scoring, personal and global rankings. Use shortcode [matching_pairs_game].
- * Version: 11.1.0
+ * Version: 11.1.1
  * Author: MisterT9007
  */
 
@@ -10,7 +10,7 @@
 if (!defined('ABSPATH')) exit;
 
 class Matching_Pairs_Game {
-    const VERSION      = '11.1.0';
+    const VERSION      = '11.1.1';
     const TABLE        = 'matching_pairs_scores';
 
     // Profanity filter - add more as needed
@@ -196,11 +196,11 @@ class Matching_Pairs_Game {
         
         // Final check before submission
         if (trim($sanitized) === '') {
-            return array('ok' => false, 'error' => 'empty_initials');
+            return array('ok' => false, 'error' => 'empty_initials', 'message' => 'Initials cannot be empty.');
         }
 
         if ($this->is_profanity($sanitized)) {
-            return array('ok' => false, 'error' => 'profanity_detected');
+            return array('ok' => false, 'error' => 'profanity_detected', 'message' => 'Please choose appropriate initials.');
         }
 
         $score    = isset($params['score']) ? intval($params['score']) : 0;
@@ -229,8 +229,20 @@ class Matching_Pairs_Game {
         );
 
         $ok = $wpdb->insert($table, $data);
+        
         if (!$ok) {
-            return array('ok' => false, 'error' => 'db_insert_failed');
+            // Return detailed error information
+            $last_error = $wpdb->last_error;
+            error_log('Matching Pairs DB Insert Error: ' . $last_error);
+            return array(
+                'ok' => false, 
+                'error' => 'db_insert_failed',
+                'message' => 'Database error: ' . ($last_error ?: 'Unknown error'),
+                'debug' => array(
+                    'table' => $table,
+                    'wpdb_error' => $last_error,
+                )
+            );
         }
 
         return array('ok' => true, 'id' => $wpdb->insert_id, 'initials' => $sanitized);
