@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Matching Pairs Game
  * Description: 6-round matching pairs game with timer, scoring, personal and global rankings. Use shortcode [matching_pairs_game].
- * Version: 11.1.1
+ * Version: 11.1.2
  * Author: MisterT9007
  */
 
@@ -10,7 +10,7 @@
 if (!defined('ABSPATH')) exit;
 
 class Matching_Pairs_Game {
-    const VERSION      = '11.1.1';
+    const VERSION      = '11.1.2';
     const TABLE        = 'matching_pairs_scores';
 
     // Profanity filter - add more as needed
@@ -42,9 +42,51 @@ class Matching_Pairs_Game {
 
     public function __construct() {
         register_activation_hook(__FILE__, array($this, 'on_activate'));
+        add_action('init', array($this, 'check_table_structure'));
         add_action('init', array($this, 'register_assets'));
         add_shortcode('matching_pairs_game', array($this, 'shortcode'));
         add_action('rest_api_init', array($this, 'register_routes'));
+    }
+
+    public function check_table_structure() {
+        // Only run this check for admin users to reduce overhead
+        if (!current_user_can('manage_options')) {
+            return;
+        }
+        
+        // Check if we've already run the update (store in transient for 1 day)
+        if (get_transient('matching_pairs_table_checked')) {
+            return;
+        }
+        
+        global $wpdb;
+        $table = $wpdb->prefix . self::TABLE;
+        
+        // Check if table exists
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table'");
+        
+        if (!$table_exists) {
+            $this->on_activate();
+            set_transient('matching_pairs_table_checked', 1, DAY_IN_SECONDS);
+            return;
+        }
+        
+        // Check for round_reached column
+        $round_col = $wpdb->get_results("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '$table' AND COLUMN_NAME = 'round_reached'");
+        
+        if (empty($round_col)) {
+            $wpdb->query("ALTER TABLE $table ADD COLUMN round_reached TINYINT UNSIGNED NOT NULL DEFAULT 1 AFTER matched_pairs");
+            $wpdb->query("ALTER TABLE $table ADD KEY round_reached (round_reached)");
+        }
+        
+        // Check initials column size
+        $initials_col = $wpdb->get_row("SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '$table' AND COLUMN_NAME = 'initials'");
+        
+        if ($initials_col && strpos($initials_col->COLUMN_TYPE, 'varchar(3)') !== false) {
+            $wpdb->query("ALTER TABLE $table MODIFY COLUMN initials VARCHAR(5) NULL");
+        }
+        
+        set_transient('matching_pairs_table_checked', 1, DAY_IN_SECONDS);
     }
 
     public function on_activate() {
@@ -71,6 +113,20 @@ class Matching_Pairs_Game {
 
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql);
+        
+        // Check if round_reached column exists, if not add it (for existing installations)
+        $row = $wpdb->get_results("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '$table' AND COLUMN_NAME = 'round_reached'");
+        
+        if (empty($row)) {
+            $wpdb->query("ALTER TABLE $table ADD COLUMN round_reached TINYINT UNSIGNED NOT NULL DEFAULT 1 AFTER matched_pairs");
+        }
+        
+        // Check if initials column is VARCHAR(5), update if it's still VARCHAR(3)
+        $initials_col = $wpdb->get_row("SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '$table' AND COLUMN_NAME = 'initials'");
+        
+        if ($initials_col && strpos($initials_col->COLUMN_TYPE, 'varchar(3)') !== false) {
+            $wpdb->query("ALTER TABLE $table MODIFY COLUMN initials VARCHAR(5) NULL");
+        }
     }
 
     public function register_assets() {
@@ -228,24 +284,36 @@ class Matching_Pairs_Game {
             'created_at'   => current_time('mysql'),
         );
 
-        $ok = $wpdb->insert($table, $data);
+        // Log what we're trying to insert
+        error_log('Matching Pairs - Attempting to insert: ' . print_r($data, true));
         
-        if (!$ok) {
-            // Return detailed error information
+        $result = $wpdb->insert($table, $data);
+        
+        // Log the result and any errors
+        error_log('Matching Pairs - Insert result: ' . ($result === false ? 'FALSE' : $result));
+        error_log('Matching Pairs - Last error: ' . $wpdb->last_error);
+        error_log('Matching Pairs - Last query: ' . $wpdb->last_query);
+        
+        if ($result === false) {
             $last_error = $wpdb->last_error;
-            error_log('Matching Pairs DB Insert Error: ' . $last_error);
+            $last_query = $wpdb->last_query;
+            
             return array(
                 'ok' => false, 
                 'error' => 'db_insert_failed',
-                'message' => 'Database error: ' . ($last_error ?: 'Unknown error'),
+                'message' => 'Database insert failed. Check server error logs.',
                 'debug' => array(
-                    'table' => $table,
                     'wpdb_error' => $last_error,
+                    'wpdb_query' => $last_query,
+                    'result' => $result,
                 )
             );
         }
 
-        return array('ok' => true, 'id' => $wpdb->insert_id, 'initials' => $sanitized);
+        $insert_id = $wpdb->insert_id;
+        error_log('Matching Pairs - Successfully inserted with ID: ' . $insert_id);
+        
+        return array('ok' => true, 'id' => $insert_id, 'initials' => $sanitized);
     }
 
     public function handle_personal($request) {

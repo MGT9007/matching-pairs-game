@@ -710,10 +710,20 @@
 
         if (!submitData || !submitData.ok) {
           const errorDetail = submitData && submitData.error ? submitData.error : "unknown error";
-          errorMsg.textContent = "Could not save score: " + errorDetail;
+          let errorMessage = "Could not save score: " + errorDetail;
+          
+          // Add debug information if available
+          if (submitData && submitData.debug) {
+            console.error("Debug information:", submitData.debug);
+            if (submitData.debug.wpdb_error) {
+              errorMessage += " (MySQL: " + submitData.debug.wpdb_error + ")";
+            }
+          }
+          
+          errorMsg.textContent = submitData && submitData.message ? submitData.message : errorMessage;
           errorMsg.style.display = "block";
           saveBtn.disabled = false;
-          console.error("Score submission failed:", errorDetail);
+          console.error("Score submission failed:", errorDetail, submitData);
           return;
         }
 
