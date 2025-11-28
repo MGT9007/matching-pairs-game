@@ -140,7 +140,8 @@
   const ROUND_DURATION_MS = 60000; // 60 seconds per round
   const PRE_COUNTDOWN_MS = 3000; // 3 seconds
  
-  let state = "intro"; // intro | countdown | playing | round_complete | finished | personal | global
+  let state = "intro"; // intro | countdown | playing | round_complete | finished | personal | global | timesup
+  let imagesPreloaded = false;
   let currentRound = 0; // 0-indexed (0 = Round 1, 1 = Round 2, 2 = Round 3)
   let totalScore = 0;
   let totalMatchedPairs = 0;
@@ -165,6 +166,36 @@
       [arr[i], arr[j]] = [arr[j], arr[i]];
     }
     return arr;
+  }
+
+  function preloadImages() {
+    return new Promise((resolve) => {
+      if (imagesPreloaded) {
+        resolve();
+        return;
+      }
+
+      let loaded = 0;
+      const total = CARD_IMAGES.length;
+
+      if (total === 0) {
+        imagesPreloaded = true;
+        resolve();
+        return;
+      }
+
+      CARD_IMAGES.forEach((src) => {
+        const img = new Image();
+        img.onload = img.onerror = () => {
+          loaded++;
+          if (loaded === total) {
+            imagesPreloaded = true;
+            resolve();
+          }
+        };
+        img.src = src;
+      });
+    });
   }
 
   function createDeck(pairCount) {
@@ -234,7 +265,12 @@
 
     const actions = el("div", "mpg-actions");
     const btn = el("button", "mpg-btn", "Start Round 1");
-    btn.onclick = () => startCountdown();
+    btn.onclick = async () => {
+      btn.disabled = true;
+      btn.textContent = "Loading...";
+      await preloadImages();
+      startCountdown();
+    };
     actions.appendChild(btn);
 
     card.appendChild(actions);
@@ -507,7 +543,43 @@
     }
 
     const finalRound = currentRound + 1; // Convert to 1-indexed for display
-    renderFinished(finalRound, completed);
+    
+    // Show modal if time ran out
+    if (!completed) {
+      renderTimesUpModal(finalRound);
+    } else {
+      renderFinished(finalRound, completed);
+    }
+  }
+
+  function renderTimesUpModal(finalRound) {
+    const wrap = el("div", "mpg-wrap");
+    
+    // Create modal overlay
+    const overlay = el("div", "mpg-modal-overlay");
+    const modal = el("div", "mpg-modal");
+    
+    const title = el("h2", "mpg-modal-title", "⏰ Time's Up!");
+    modal.appendChild(title);
+    
+    const message = el("p", "mpg-modal-text", `You completed Round ${finalRound} before time ran out.`);
+    modal.appendChild(message);
+    
+    const scoreInfo = el("p", "mpg-modal-score");
+    scoreInfo.innerHTML = `<strong>Your Score: ${totalScore} points</strong>`;
+    modal.appendChild(scoreInfo);
+    
+    const btnContainer = el("div", "mpg-modal-actions");
+    const okBtn = el("button", "mpg-btn", "OK");
+    okBtn.onclick = () => {
+      renderFinished(finalRound, false);
+    };
+    btnContainer.appendChild(okBtn);
+    modal.appendChild(btnContainer);
+    
+    overlay.appendChild(modal);
+    wrap.appendChild(overlay);
+    root.replaceChildren(wrap);
   }
 
   function renderFinished(finalRound, completed) {

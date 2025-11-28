@@ -175,6 +175,81 @@
   opacity: 0.4;
   cursor: default;
 }
+
+/* Modal styles for Time's Up popup */
+.mpg-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+.mpg-modal {
+  background: white;
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease;
+}
+
+.mpg-modal-title {
+  font-size: 32px;
+  margin: 0 0 16px 0;
+  color: #d32f2f;
+}
+
+.mpg-modal-text {
+  font-size: 16px;
+  color: #444;
+  margin: 0 0 16px 0;
+  line-height: 1.5;
+}
+
+.mpg-modal-score {
+  font-size: 18px;
+  color: #111;
+  margin: 16px 0 24px 0;
+}
+
+.mpg-modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.mpg-modal-actions .mpg-btn {
+  min-width: 120px;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
 /* Medium screens – adjust grid layouts */
 @media (max-width: 900px) {
   .mpg-wrap {
